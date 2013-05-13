@@ -8,10 +8,11 @@ TODO: make use of possiblities
 #include <stdio.h>
 
 #define SIZE 9
+#define ROOT_SIZE 3
 
 typedef struct {
     int value;
-    int possVals[9];
+    int possVals[SIZE];
     int possibilities;
 } cell;
 
@@ -134,11 +135,11 @@ void findPossibilities(cell* board, int row, int col) {
     }
 
     //Eliminate values already used in this square
-    int squareRow = (row/3)*3;  // Top row of this sub-square
-    int squareCol = (col/3)*3;  // Left col of this sub-square
+    int squareRow = (row/ROOT_SIZE)*ROOT_SIZE;  // Top row of this sub-square
+    int squareCol = (col/ROOT_SIZE)*ROOT_SIZE;  // Left col of this sub-square
     
-    for(int i=squareRow; i<squareRow+3; i++) {
-	for(int j=squareCol; j<squareCol+3; j++) {
+    for(int i=squareRow; i<squareRow+ROOT_SIZE; i++) {
+	for(int j=squareCol; j<squareCol+ROOT_SIZE; j++) {
 	    int value = board[i*SIZE + j].value;
 	    if(value)
 		board[row*SIZE + col].possVals[value-1] = 0;
