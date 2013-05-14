@@ -19,8 +19,8 @@ typedef struct {
 int move(cell*);
 int chooseMove(cell* board, int* row, int* col);
 void printBoard(cell*);
-int applyMove(cell* board, int row, int col, int value);
-int undoMove(cell* board, int row, int col);
+int applyMove(cell* board, int* adjustments, int row, int col, int value);
+int undoMove(cell* board, int* adjustments, int row, int col, int value);
 int solve(cell*);
 void analyze(cell*);
 void findPossibilities(cell* board, int row, int col);
@@ -68,12 +68,12 @@ int main(void) {
 		// We have read in a complete puzzle
 		//printf("\nInput:\n\n");
 		//printBoard(board);
-
+		
 		if(!solve(board))
 		    printf("Puzzle %i: Solved\n", puzzle);
 		else
 		    printf("Puzzle %i: No Solution Found\n", puzzle);
-
+		
 		//printf("\nOutput:\n\n");
 		//printBoard(board);
 	       
@@ -134,7 +134,7 @@ void findPossibilities(cell* board, int row, int col) {
 	    board[row*SIZE + col].possVals[value-1] = 0;
     }
 
-    //Eliminate values already used in this square
+    // Eliminate values already used in this square
     int squareRow = (row/ROOT_SIZE)*ROOT_SIZE;  // Top row of this sub-square
     int squareCol = (col/ROOT_SIZE)*ROOT_SIZE;  // Left col of this sub-square
     
@@ -145,7 +145,6 @@ void findPossibilities(cell* board, int row, int col) {
 		board[row*SIZE + col].possVals[value-1] = 0;
 	}
     }
-    
 }
 
 // Backtracking algorithm implementation
@@ -158,15 +157,19 @@ int move(cell* board) {
 	return -1;  // Failed. Were open cells, but no possible values for them
     if(chosenCell == 0)
 	return 0;  // Success. No open cells left.
-	
+
+    // Array to track changes due to this move. Store index (row*SIZE+col), for 
+    // potentially all cells in row, col, and square (3*SIZE)
+    int adjustments[3*SIZE+1];
+
     // Iterate over, and make move for, each possible values for this cell
     for(int i=0; i<SIZE; i++) {
 	if(board[row*SIZE + col].possVals[i]) {
-	    applyMove(board, row, col, i+1);
+	    applyMove(board, adjustments, row, col, i+1);
 	    if(!move(board))
 		return 0; // Success
 	    else
-		undoMove(board, row, col); // Undo, so we can try next value
+		undoMove(board, adjustments, row, col, i+1); // Undo, so we can try next value
 	}
     }
 
@@ -178,7 +181,7 @@ int chooseMove(cell* board, int* row, int* col) {
     *col = -1; // Column of open square with fewest possibilities
     int minPoss = SIZE+1;  // Number of possible values for cell with fewest
 
-    //Find cell with fewest possible values
+    // Find cell with fewest possible values
     for(int i=0; i<SIZE; i++) {
 	for(int j=0; j<SIZE; j++) {
 	    cell* c = board + i*SIZE + j;
@@ -212,43 +215,64 @@ int chooseMove(cell* board, int* row, int* col) {
 	return 1; // Use board[row, col] for next move
 }
 
-int applyMove(cell* board, int row, int col, int value) {
+int applyMove(cell* board, int* adjustments, int row, int col, int value) {
+    // Apply value to cell
     board[row*SIZE + col].value = value;
-    // WHY do we need this?
-    for(int i=0; i<SIZE; i++) {
-	for(int j=0; j<SIZE; j++) {
-	    for(int k=0; k<SIZE; k++) {
-		board[i*SIZE + j].possVals[k] = k+1;
+
+    int changeNumber = 0;
+
+    // Update possibilites for remaining cells
+    // In row...
+    for(int j=0; j<SIZE; j++) {
+	//int value = board[row*SIZE + j].value;
+	if(!board[row*SIZE + j].value) {
+	    int* possibility = &(board[row*SIZE + j].possVals[value-1]);
+	    if(*possibility) {
+		*possibility = 0;  // This is no longer a possibility
+		adjustments[changeNumber++] = row*SIZE+j; // Add it to list of adjustmemts
 	    }
 	}
     }
+
+    // ... in this column ...
+    for(int i=0; i<SIZE; i++) {
+	//int value = board[i*SIZE + col].value;
+	if(!board[i*SIZE + col].value) {
+	    int* possibility = &(board[i*SIZE + col].possVals[value-1]);
+	    if(*possibility) {
+		*possibility = 0;
+		adjustments[changeNumber++] = i*SIZE+col;
+	    }
+	}
+    }
+
+    // ... and in this square.
+    int squareRow = (row/ROOT_SIZE)*ROOT_SIZE;  // Top row of this sub-square
+    int squareCol = (col/ROOT_SIZE)*ROOT_SIZE;  // Left col of this sub-square
     
-    for(int i=0; i<SIZE; i++) {
-	for(int j=0; j<SIZE; j++) {
-	    if(!board[i*SIZE+j].value) {
-		findPossibilities(board, i, j);
+    for(int i=squareRow; i<squareRow+ROOT_SIZE; i++) {
+	for(int j=squareCol; j<squareCol+ROOT_SIZE; j++) {
+	    //int value = board[i*SIZE + j].value;
+	    if(!board[i*SIZE + j].value) {
+		int* possibility = &(board[i*SIZE + j].possVals[value-1]);
+		if(*possibility) {
+		    *possibility = 0;
+		    adjustments[changeNumber++] = i*SIZE+j;
+		}
 	    }
 	}
     }
+
+    adjustments[changeNumber] = -1;  // Signal end of adjustments
 }
 
-int undoMove(cell* board, int row, int col) {
+int undoMove(cell* board, int* adjustments, int row, int col, int value) {
     board[row*SIZE + col].value = 0;
-    // WHY do we need this?
-    for(int i=0; i<SIZE; i++) {
-	for(int j=0; j<SIZE; j++) {
-	    for(int k=0; k<SIZE; k++) {
-		board[i*SIZE + j].possVals[k] = k+1;
-	    }
-	}
-    }
 
-    for(int i=0; i<SIZE; i++) {
-	for(int j=0; j<SIZE; j++) {
-	    if(!board[i*SIZE+j].value) {
-		findPossibilities(board, i, j);
-	    }
-	}
+    // Undo adjustments
+    int changeNumber = 0;
+    while(adjustments[changeNumber] != -1) {
+	board[adjustments[changeNumber++]].possVals[value-1] = value;
     }
 }
 
