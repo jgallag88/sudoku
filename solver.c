@@ -1,8 +1,6 @@
 // Sudoku solver
 /*
-TODO: make use of possiblities 
-      change board incrementally, and undo incrementally
-      check for only place where a number could be in row/col/square, instead of just only value that could be in cell
+TODO: check for only place where a number could be in row/col/square, instead of just only value that could be in cell
       Might have to check last square to make sure we have valid solution when there are no open square remaining?
  */
 #include <stdio.h>
@@ -63,22 +61,22 @@ int main(void) {
 	    // Char is an ascii digits
 	    c -= '0';  // Translate from ascii char to binary value
 	    board[cellIndex++].value = c;
-
+	    
 	    if(cellIndex == SIZE*SIZE) {
 		// We have read in a complete puzzle
-		//printf("\nInput:\n\n");
-		//printBoard(board);
+		printf("\nInput:\n\n");
+		printBoard(board);
 		
 		if(!solve(board))
 		    printf("Puzzle %i: Solved\n", puzzle);
 		else
 		    printf("Puzzle %i: No Solution Found\n", puzzle);
 		
-		//printf("\nOutput:\n\n");
-		//printBoard(board);
-	       
+		printf("\nOutput:\n\n");
+		printBoard(board);
+		
 		pEulerSoln += board[0].value*100 + board[1].value*10 + board[2].value;
-
+		
 		cellIndex = 0;  // Reset index to first
 		puzzle++;
 	    }
@@ -88,7 +86,8 @@ int main(void) {
 	    ignoreLine = 1;
 	}
     }
-    printf("Project Euler solution: %i\n", pEulerSoln);
+    
+    fclose(sudokuFile);
     return 0;
 }
 
@@ -97,8 +96,7 @@ int solve(cell* board) {
     return move(board);  // Start backtracking algorithm
 }
 
-void analyze(cell* board) {
-    
+void analyze(cell* board) {    
     // Initialize possible values for each cell
     for(int row=0; row<SIZE; row++) {
 	for(int col=0; col<SIZE; col++) {
@@ -158,8 +156,8 @@ int move(cell* board) {
     if(chosenCell == 0)
 	return 0;  // Success. No open cells left.
 
-    // Array to track changes due to this move. Store index (row*SIZE+col), for 
-    // potentially all cells in row, col, and square (3*SIZE)
+    // Array to track changes due to this move. Store index (row*SIZE+col) of cell for which
+    // possVals was adjusted, for potentially all cells in row, col, and square (3*SIZE)
     int adjustments[3*SIZE+1];
 
     // Iterate over, and make move for, each possible values for this cell
@@ -173,7 +171,7 @@ int move(cell* board) {
 	}
     }
 
-    return -1;
+    return -1;  //Failed. None of possible values for this cell were sucessful.
 }
 
 int chooseMove(cell* board, int* row, int* col) {
@@ -264,6 +262,7 @@ int applyMove(cell* board, int* adjustments, int row, int col, int value) {
     }
 
     adjustments[changeNumber] = -1;  // Signal end of adjustments
+    return 0;
 }
 
 int undoMove(cell* board, int* adjustments, int row, int col, int value) {
@@ -274,6 +273,8 @@ int undoMove(cell* board, int* adjustments, int row, int col, int value) {
     while(adjustments[changeNumber] != -1) {
 	board[adjustments[changeNumber++]].possVals[value-1] = value;
     }
+
+    return 0;
 }
 
 void printBoard(cell* board) {
