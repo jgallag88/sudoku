@@ -1,0 +1,2 @@
+A sudoku solver I wrote a while back. Searches for solutions using branch and
+bound, trying to minimize backtracking. Quite fast.
